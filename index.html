@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>移通宿舍功能室 · 强交互H5</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            user-select: none;
+        }
+
+        body {
+            background: #f5f3f0;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            touch-action: pan-y;
+        }
+
+        /* 滚动容器 */
+        .scroll-container {
+            height: 100vh;
+            width: 100vw;
+            overflow-y: scroll;
+            scroll-snap-type: y mandatory;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .screen {
+            height: 100vh;
+            width: 100vw;
+            scroll-snap-align: start;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px 25px;
+            position: relative;
+            background: #ffffff;
+        }
+
+        .screen:nth-child(even) { background: #faf8f6; }
+        .content { max-width: 480px; width: 100%; }
+
+        h1 { font-size: 28px; font-weight: 700; color: #1e2a3a; }
+        h2 { font-size: 22px; font-weight: 700; color: #1e2a3a; margin-bottom: 12px; }
+        .sub { color: #6b7a8a; line-height: 1.6; font-size: 16px; }
+        .highlight { color: #e67e22; font-weight: 700; }
+
+        /* --- 封面 --- */
+        .cover-title { font-size: 34px; font-weight: 800; color: #1e2a3a; }
+        .btn-primary {
+            display: inline-block;
+            padding: 12px 40px;
+            background: #e67e22;
+            color: #fff;
+            border-radius: 40px;
+            font-weight: 600;
+            border: none;
+            box-shadow: 0 6px 20px rgba(230, 126, 34, 0.35);
+            transition: transform 0.2s;
+            cursor: pointer;
+        }
+        .btn-primary:active { transform: scale(0.92); }
+
+        /* --- 交互1：投票卡片网格 --- */
+        .card-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 12px 0;
+        }
+        .vote-card {
+            background: #fff;
+            border-radius: 16px;
+            padding: 14px 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+            border: 2px solid #f0edea;
+            text-align: center;
+            transition: all 0.2s;
+            cursor: pointer;
+            position: relative;
+        }
+        .vote-card:active { transform: scale(0.95); background: #fef9f4; border-color: #e67e22; }
+        .vote-card .icon { font-size: 28px; }
+        .vote-card .name { font-size: 14px; font-weight: 600; color: #1e2a3a; margin-top: 4px; }
+        .vote-card .bar-bg {
+            width: 100%;
+            height: 6px;
+            background: #eee;
+            border-radius: 10px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+        .vote-card .bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #f39c12, #e67e22);
+            border-radius: 10px;
+            transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .vote-card .vote-num {
+            font-size: 12px;
+            color: #999;
+            margin-top: 4px;
+        }
+
+        /* --- 交互2：3D翻转模态窗 --- */
+        .modal-mask {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(8px);
+            z-index: 999;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.3s;
+        }
+        .modal-mask.active { display: flex; }
+        .modal-box {
+            width: 85%;
+            max-width: 400px;
+            background: #fff;
+            border-radius: 28px;
+            padding: 30px 24px;
+            text-align: center;
+            transform: perspective(800px) rotateY(0deg) scale(1);
+            animation: flipIn 0.5s ease;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.3);
+        }
+        @keyframes flipIn {
+            0% { transform: perspective(800px) rotateY(-20deg) scale(0.9); opacity: 0; }
+            100% { transform: perspective(800px) rotateY(0deg) scale(1); opacity: 1; }
+        }
+        @keyframes fadeIn {
+            0% { opacity: 0; }
+            100% { opacity: 1; }
+        }
+        .modal-box h3 { font-size: 24px; margin: 8px 0; }
+        .modal-box p { color: #555; line-height: 1.6; font-size: 15px; margin: 12px 0; }
+        .modal-close {
+            margin-top: 16px;
+            padding: 8px 32px;
+            background: #1e2a3a;
+            color: #fff;
+            border: none;
+            border-radius: 40px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        /* --- 交互3：数字滚动 --- */
+        .data-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            width: 100%;
+            margin: 12px 0;
+        }
+        .data-item {
+            background: #fff;
+            border-radius: 16px;
+            padding: 18px 8px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+            border: 1px solid #f0edea;
+            text-align: center;
+        }
+        .data-item .number {
+            font-size: 34px;
+            font-weight: 800;
+            color: #e67e22;
+            font-variant-numeric: tabular-nums;
+        }
+        .data-item .label { font-size: 13px; color: #6b7a8a; margin-top: 4px; }
+
+        /* --- 交互4：全局爱心点击特效 --- */
+        .heart-float {
+            position: fixed;
+            pointer-events: none;
+            font-size: 28px;
+            z-index: 9999;
+            animation: floatUp 1.2s ease-out forwards;
+        }
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); }
+            100% { opacity: 0; transform: translateY(-180px) scale(1.6) rotate(30deg); }
+        }
+
+        /* --- 交互5：长按彩蛋 --- */
+        .easter-egg {
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            background: #1e2a3a;
+            color: #fff;
+            padding: 30px 40px;
+            border-radius: 30px;
+            z-index: 9998;
+            text-align: center;
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            pointer-events: none;
+            box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+        }
+        .easter-egg.show {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+            pointer-events: auto;
+        }
+
+        /* 评论 & 其他 */
+        .comment-item {
+            background: #f8f6f4;
+            border-radius: 14px;
+            padding: 14px 16px;
+            margin-bottom: 10px;
+            border-left: 4px solid #e67e22;
+            text-align: left;
+        }
+        .comment-item .name { font-weight: 600; font-size: 14px; }
+        .comment-item .text { font-size: 14px; color: #2c3e50; margin-top: 4px; }
+
+        /* 底部导航点 */
+        .nav-dots {
+            position: fixed;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 100;
+        }
+        .dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: #ccc;
+            border: none;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        .dot.active { background: #e67e22; transform: scale(1.4); }
+
+        /* 固定打Call按钮 */
+        .fixed-call-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 20px;
+            background: #e67e22;
+            color: #fff;
+            border: none;
+            border-radius: 50px;
+            padding: 12px 20px;
+            font-weight: 600;
+            box-shadow: 0 6px 24px rgba(230,126,34,0.4);
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 6px 24px rgba(230,126,34,0.4); }
+            50% { box-shadow: 0 6px 40px rgba(230,126,34,0.7); transform: scale(1.03); }
+            100% { box-shadow: 0 6px 24px rgba(230,126,34,0.4); }
+        }
+        .fixed-call-btn:active { transform: scale(0.9); }
+
+        .video-wrapper {
+            width: 100%;
+            border-radius: 16px;
+            overflow: hidden;
+            background: #000;
+            margin: 10px 0;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+        }
+        .video-wrapper video { width: 100%; display: block; }
+
+        /* 小屏适配 */
+        @media (max-width: 480px) {
+            .cover-title { font-size: 28px; }
+            .data-item .number { font-size: 28px; }
+            .card-grid { gap: 8px; }
+            .vote-card { padding: 10px 6px; }
+            .vote-card .icon { font-size: 24px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 导航点 -->
+    <div class="nav-dots" id="navDots"></div>
+
+    <!-- 固定打Call按钮 -->
+    <button class="fixed-call-btn" id="globalCallBtn">❤️ 为移通打Call</button>
+
+    <!-- 3D模态窗 -->
+    <div class="modal-mask" id="roomModal">
+        <div class="modal-box">
+            <div style="font-size: 48px;" id="modalIcon">🏠</div>
+            <h3 id="modalTitle">功能室</h3>
+            <p id="modalDesc">这里是详细的功能室介绍，点击下方按钮为该房间投票！</p>
+            <button class="btn-primary" style="padding: 8px 30px; font-size: 16px;" id="modalVoteBtn">❤️ 为它投票</button>
+            <br>
+            <button class="modal-close" id="modalCloseBtn">关闭</button>
+        </div>
+    </div>
+
+    <!-- 长按彩蛋 -->
+    <div class="easter-egg" id="easterEgg">
+        <div style="font-size: 60px;">🎉</div>
+        <h3 style="color: #fff; margin: 10px 0;">解锁隐藏成就</h3>
+        <p style="color: #ddd;">“功能室探索家”<br>你已经发现了这个秘密彩蛋！</p>
+    </div>
+
+    <!-- 滚动容器 -->
+    <div class="scroll-container" id="scrollContainer">
+
+        <!-- ====== 屏1：封面 ====== -->
+        <section class="screen">
+            <div class="content" style="text-align: center;">
+                <div style="font-size: 56px; margin-bottom: 10px;">🏠</div>
+                <div class="cover-title" id="eggTrigger">宿舍楼下藏了个<br>“百宝箱”？</div>
+                <div class="sub" style="margin-top: 10px; font-size: 16px;">—— 重庆移通学院宿舍功能室</div>
+                <div style="margin-top: 30px; font-size: 14px; color: #aaa;">👆 上滑探索 · 点击屏幕飘爱心</div>
+                <div style="margin-top: 20px; cursor: pointer;" onclick="document.getElementById('scrollContainer').scrollBy(0, window.innerHeight);">
+                    <span style="display: inline-block; animation: bounce 1.5s infinite;">⬇️</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- ====== 屏2：导语 ====== -->
+        <section class="screen">
+            <div class="content">
+                <h2>✨ 楼下就是“宝藏空间”</h2>
+                <p class="sub" style="text-align: left;">
+                    自习、健身、看电影、煮火锅……<br>
+                    在移通学院，宿舍楼下居然藏了 <strong class="highlight">30多类功能室</strong>，统统免费开放！<br><br>
+                    书院制改革以来，宿舍楼不再只是“睡觉的地方”，而是变成了集生活、交流、成长于一体的社区空间。
+                </p>
+                <div style="width: 100%; background: #f0edea; border-radius: 20px; padding: 16px; margin-top: 12px; text-align: left;">
+                    <span style="font-weight: 600;">🎙️ 街采预告：</span>
+                    <span class="sub" style="font-size: 14px;">同学们到底用得怎么样？下滑看视频 👇</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- ====== 屏3：投票交互墙（核心强交互） ====== -->
+        <section class="screen">
+            <div class="content">
+                <h2>🏆 最火功能室投票</h2>
+                <p class="sub" style="font-size: 14px; margin-bottom: 6px;">👇 点击卡片查看详情，顺便投它一票！</p>
+                <div class="card-grid" id="voteGrid">
+                    <!-- 卡片1 -->
+                    <div class="vote-card" data-room="study" onclick="openRoom('study')">
+                        <div class="icon">📚</div>
+                        <div class="name">静音自习室</div>
+                        <div class="bar-bg"><div class="bar-fill" id="bar-study" style="width: 0%;"></div></div>
+                        <div class="vote-num"><span id="num-study">0</span> 票</div>
+                    </div>
+                    <!-- 卡片2 -->
+                    <div class="vote-card" data-room="gym" onclick="openRoom('gym')">
+                        <div class="icon">💪</div>
+                        <div class="name">共享健身房</div>
+                        <div class="bar-bg"><div class="bar-fill" id="bar-gym" style="width: 0%;"></div></div>
+                        <div class="vote-num"><span id="num-gym">0</span> 票</div>
+                    </div>
+                    <!-- 卡片3 -->
+                    <div class="vote-card" data-room="movie" onclick="openRoom('movie')">
+                        <div class="icon">🎬</div>
+                        <div class="name">影音室</div>
+                        <div class="bar-bg"><div class="bar-fill" id="bar-movie" style="width: 0%;"></div></div>
+                        <div class="vote-num"><span id="num-movie">0</span> 票</div>
+                    </div>
+                    <!-- 卡片4 -->
+                    <div class="vote-card" data-room="relax" onclick="openRoom('relax')">
+                        <div class="icon">🧘</div>
+                        <div class="name">解压室</div>
+                        <div class="bar-bg"><div class="bar-fill" id="bar-relax" style="width: 0%;"></div></div>
+                        <div class="vote-num"><span id="num-relax">0</span> 票</div>
+                    </div>
+                </div>
+                <p class="sub" style="font-size: 12px; color: #aaa; margin-top: 4px;">*点击卡片投票，数据实时更新</p>
+            </div>
+        </section>
+
+        <!-- ====== 屏4：采访视频 ====== -->
+        <section class="screen">
+            <div class="content">
+                <h2>🎙️ 同学请回答</h2>
+                <p class="sub" style="font-size: 14px; margin-bottom: 6px;">“功能室，你爱了吗？”</p>
+                <div class="video-wrapper">
+                    <!-- ★★★ 替换为你自己的视频文件 ★★★ -->
+                    <video controls playsinline preload="metadata">
+                        <source src="interview.mp4" type="video/mp4">
+                        您的浏览器不支持视频播放。
+                    </video>
+                </div>
+                <p class="sub" style="font-size: 13px; margin-top: 4px;">📹 随机抓了几位同学，听听他们怎么说</p>
+            </div>
+        </section>
+
+        <!-- ====== 屏5：数据滚动 ====== -->
+        <section class="screen" id="dataScreen">
+            <div class="content">
+                <h2>📊 数据看功能室</h2>
+                <div class="data-grid">
+                    <div class="data-item"><div class="number" data-target="384">0</div><div class="label">功能室总数（间）</div></div>
+                    <div class="data-item"><div class="number" data-target="2.7">0</div><div class="label">文化空间（万m²）</div></div>
+                    <div class="data-item"><div class="number" data-target="95">0</div><div class="label">使用满意度（%）</div></div>
+                    <div class="data-item"><div class="number" data-target="30">0</div><div class="label">功能类型（+种）</div></div>
+                </div>
+                <p class="sub" style="font-size: 12px; margin-top: 8px;">*数据来源：重庆移通学院书院部</p>
+            </div>
+        </section>
+
+        <!-- ====== 屏6：深度解读 ====== -->
+        <section class="screen">
+            <div class="content">
+                <h2>🏛️ 什么是“书院制”？</h2>
+                <div style="background: #f8f6f4; border-radius: 20px; padding: 20px; text-align: left; width: 100%;">
+                    <p style="font-size: 15px; line-height: 1.8; color: #2c3e50;">
+                        <strong>“生活在书院，专业在学院”</strong><br><br>
+                        移通学院推行“双院制”，书院集 <strong>生活、住宿、交流、活动</strong> 于一体。宿舍楼一楼变身健身房、影院、自习室……<br><br>
+                        目前已有 <strong class="highlight">20个书院</strong>，将学习与生活共融，建设有温度的校园空间。
+                    </p>
+                </div>
+                <button class="btn-primary" style="margin-top: 16px; font-size: 14px; padding: 10px 30px;" onclick="alert('🏠 书院文化，让宿舍更有温度！')">了解更多</button>
+            </div>
+        </section>
+
+        <!-- ====== 屏7：评论区 ====== -->
+        <section class="screen">
+            <div class="content">
+                <h2>💬 同学有话说</h2>
+                <div class="comment-item"><div class="name">小王 · 通信工程</div><div class="text">“周末去影音室看电影、去健身房出汗，宿舍生活丰富多了！”</div></div>
+                <div class="comment-item"><div class="name">小李 · 大数据</div><div class="text">“期末复习周，自习室救大命！不用早起抢座，下楼就有。” </div></div>
+                <div class="comment-item"><div class="name">小张 · 淬炼商学院</div><div class="text">“共享厨房yyds！跟室友煮火锅，归属感拉满。” </div></div>
+                <button class="btn-primary" style="font-size: 14px; padding: 8px 30px; background: #1e2a3a; box-shadow: none;" onclick="alert('💬 评论功能开发中，欢迎在朋友圈分享你的感受！')">我也要评论</button>
+            </div>
+        </section>
+
+        <!-- ====== 屏8：结尾 ====== -->
+        <section class="screen">
+            <div class="content" style="text-align: center;">
+                <div style="font-size: 48px; margin-bottom: 10px;">☀️</div>
+                <h2 style="font-size: 24px;">一间小空间，宿舍大不同</h2>
+                <p class="sub" style="margin-top: 8px;">
+                    从“住得了”到“住得好”，<br>
+                    移通学院把宿舍变成了 <strong class="highlight">“成长加油站”</strong>。
+                </p>
+                <button class="btn-primary" style="margin-top: 24px;" onclick="window.location.reload();">🔄 再看一遍</button>
+                <p style="margin-top: 20px; font-size: 12px; color: #ccc;">长按标题有惊喜 🥚</p>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        (function() {
+            // ===== 1. 导航点逻辑 =====
+            const container = document.getElementById('scrollContainer');
+            const screens = document.querySelectorAll('.screen');
+            const dotsContainer = document.getElementById('navDots');
+            let currentIndex = 0;
+
+            // 生成导航点
+            screens.forEach((_, i) => {
+                const dot = document.createElement('div');
+                dot.className = 'dot' + (i === 0 ? ' active' : '');
+                dot.dataset.index = i;
+                dot.addEventListener('click', () => {
+                    screens[i].scrollIntoView({ behavior: 'smooth' });
+                });
+                dotsContainer.appendChild(dot);
+            });
+            const dots = dotsContainer.querySelectorAll('.dot');
+
+            container.addEventListener('scroll', () => {
+                let nearest = 0;
+                let minDist = Infinity;
+                const scrollTop = container.scrollTop;
+                screens.forEach((screen, i) => {
+                    const offset = screen.offsetTop;
+                    const dist = Math.abs(scrollTop - offset);
+                    if (dist < minDist) { minDist = dist; nearest = i; }
+                });
+                if (nearest !== currentIndex) {
+                    currentIndex = nearest;
+                    dots.forEach((d, i) => d.classList.toggle('active', i === currentIndex));
+                }
+            });
+
+            // ===== 2. 全局点击爱心特效（强交互） =====
+            document.addEventListener('click', function(e) {
+                // 排除按钮和输入框等
+                const tag = e.target.tagName.toLowerCase();
+                if (tag === 'button' || tag === 'input' || tag === 'video') return;
+                
+                const heart = document.createElement('div');
+                heart.className = 'heart-float';
+                heart.textContent = ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎'][Math.floor(Math.random() * 9)];
+                heart.style.left = (e.clientX - 20) + 'px';
+                heart.style.top = (e.clientY - 20) + 'px';
+                heart.style.fontSize = (24 + Math.random() * 20) + 'px';
+                document.body.appendChild(heart);
+                setTimeout(() => heart.remove(), 1300);
+            });
+
+            // ===== 3. 投票系统（本地模拟，刷新重置） =====
+            const rooms = {
+                study: { name: '静音自习室', votes: 0, bar: 'bar-study', num: 'num-study' },
+                gym: { name: '共享健身房', votes: 0, bar: 'bar-gym', num: 'num-gym' },
+                movie: { name: '影音室', votes: 0, bar: 'bar-movie', num: 'num-movie' },
+                relax: { name: '解压室', votes: 0, bar: 'bar-relax', num: 'num-relax' }
+            };
+
+            // 尝试从本地存储读取（可选）
+            try {
+                const saved = localStorage.getItem('roomVotes');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    Object.keys(parsed).forEach(key => {
+                        if (rooms[key]) rooms[key].votes = parsed[key];
+                    });
+                }
+            } catch(e) {}
+
+            function updateVotesUI() {
+                let total = 0;
+                Object.keys(rooms).forEach(key => {
+                    total += rooms[key].votes;
+                });
+                if (total === 0) total = 1; // 防止除以0
+
+                Object.keys(rooms).forEach(key => {
+                    const room = rooms[key];
+                    const pct = (room.votes / total) * 100;
+                    document.getElementById(room.bar).style.width = Math.min(pct, 100) + '%';
+                    document.getElementById(room.num).textContent = room.votes;
+                });
+                // 保存到本地
+                try {
+                    const saveObj = {};
+                    Object.keys(rooms).forEach(k => { saveObj[k] = rooms[k].votes; });
+                    localStorage.setItem('roomVotes', JSON.stringify(saveObj));
+                } catch(e) {}
+            }
+
+            // 投票函数（供点击调用）
+            window.voteForRoom = function(roomId) {
+                if (rooms[roomId]) {
+                    rooms[roomId].votes += 1;
+                    updateVotesUI();
+                    // 飘一个爱心反馈
+                    const cards = document.querySelectorAll('.vote-card');
+                    cards.forEach(card => {
+                        if (card.dataset.room === roomId) {
+                            const rect = card.getBoundingClientRect();
+                            const heart = document.createElement('div');
+                            heart.className = 'heart-float';
+                            heart.textContent = '❤️';
+                            heart.style.left = (rect.left + rect.width/2 - 15) + 'px';
+                            heart.style.top = (rect.top - 10) + 'px';
+                            heart.style.fontSize = '36px';
+                            document.body.appendChild(heart);
+                            setTimeout(() => heart.remove(), 1300);
+                        }
+                    });
+                }
+            };
+
+            // 打开模态窗（点击卡片）
+            window.openRoom = function(roomId) {
+                const map = {
+                    study: { icon: '📚', title: '静音自习室', desc: '24小时开放，独立卡座+护眼灯。再也不用早起去图书馆抢位置了！' },
+                    gym: { icon: '💪', title: '共享健身房', desc: '瑜伽垫、哑铃、跑步机应有尽有。下楼就能撸铁，懒人福音！' },
+                    movie: { icon: '🎬', title: '多功能影音室', desc: '百寸投影+环绕音响。宿舍版私人影院，周末聚会首选！' },
+                    relax: { icon: '🧘', title: '心理解压室', desc: '沙袋、涂鸦墙、音乐放松椅。emo了？来这儿待10分钟就好。' }
+                };
+                const data = map[roomId];
+                if (!data) return;
+                document.getElementById('modalIcon').textContent = data.icon;
+                document.getElementById('modalTitle').textContent = data.title;
+                document.getElementById('modalDesc').textContent = data.desc;
+                document.getElementById('roomModal').classList.add('active');
+                // 绑定模态窗内的投票按钮
+                document.getElementById('modalVoteBtn').onclick = function() {
+                    window.voteForRoom(roomId);
+                    // 也可以顺便关闭弹窗反馈
+                    alert('✅ 投票成功！感谢你的参与。');
+                };
+            };
+
+            // 关闭模态窗
+            document.getElementById('modalCloseBtn').addEventListener('click', function() {
+                document.getElementById('roomModal').classList.remove('active');
+            });
+            document.getElementById('roomModal').addEventListener('click', function(e) {
+                if (e.target === this) this.classList.remove('active');
+            });
+
+            // 初始化UI
+            updateVotesUI();
+
+            // ===== 4. 数字滚动动画（Intersection Observer） =====
+            const numberEls = document.querySelectorAll('.number[data-target]');
+            let animated = false;
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting && !animated) {
+                        animated = true;
+                        numberEls.forEach(el => {
+                            const target = parseFloat(el.dataset.target);
+                            const isFloat = target % 1 !== 0;
+                            let current = 0;
+                            const increment = target / 40; // 40帧完成
+                            const timer = setInterval(() => {
+                                current += increment;
+                                if (current >= target) {
+                                    current = target;
+                                    clearInterval(timer);
+                                }
+                                if (isFloat) {
+                                    el.textContent = current.toFixed(1);
+                                } else {
+                                    el.textContent = Math.floor(current);
+                                }
+                            }, 20);
+                        });
+                    }
+                });
+            }, { threshold: 0.3 });
+
+            const dataScreen = document.getElementById('dataScreen');
+            if (dataScreen) observer.observe(dataScreen);
+
+            // ===== 5. 长按彩蛋（长按标题3秒） =====
+            let longPressTimer = null;
+            const eggTrigger = document.getElementById('eggTrigger');
+            const egg = document.getElementById('easterEgg');
+
+            eggTrigger.addEventListener('touchstart', startLongPress);
+            eggTrigger.addEventListener('mousedown', startLongPress);
+            eggTrigger.addEventListener('touchend', cancelLongPress);
+            eggTrigger.addEventListener('touchmove', cancelLongPress);
+            eggTrigger.addEventListener('mouseup', cancelLongPress);
+            eggTrigger.addEventListener('mouseleave', cancelLongPress);
+
+            function startLongPress(e) {
+                longPressTimer = setTimeout(() => {
+                    egg.classList.add('show');
+                    setTimeout(() => {
+                        egg.classList.remove('show');
+                    }, 3000);
+                }, 2500);
+            }
+            function cancelLongPress() {
+                if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+            }
+            // 点击彩蛋关闭
+            egg.addEventListener('click', function() {
+                this.classList.remove('show');
+            });
+
+            // ===== 6. 全局打Call按钮 =====
+            document.getElementById('globalCallBtn').addEventListener('click', function() {
+                // 随机给一个房间加5票
+                const keys = Object.keys(rooms);
+                const randomRoom = keys[Math.floor(Math.random() * keys.length)];
+                rooms[randomRoom].votes += 5;
+                updateVotesUI();
+                alert('🔥 感谢打Call！为 ' + rooms[randomRoom].name + ' 增加了5票！');
+                // 全屏爱心雨
+                for (let i = 0; i < 20; i++) {
+                    setTimeout(() => {
+                        const h = document.createElement('div');
+                        h.className = 'heart-float';
+                        h.textContent = ['❤️','🧡','💛','💚','💙','💜'][Math.floor(Math.random()*6)];
+                        h.style.left = (Math.random() * window.innerWidth) + 'px';
+                        h.style.top = (Math.random() * window.innerHeight) + 'px';
+                        h.style.fontSize = (20 + Math.random() * 30) + 'px';
+                        document.body.appendChild(h);
+                        setTimeout(() => h.remove(), 1500);
+                    }, i * 100);
+                }
+            });
+
+            console.log('✅ 强交互H5已启动！试试点击屏幕、长按标题、给功能室投票！');
+        })();
+    </script>
+</body>
+</html>
